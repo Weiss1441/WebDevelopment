@@ -1,41 +1,31 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>TaskBoard - Home</title>
+  <title>TaskBoard</title>
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
 
 <nav>
-  <a href="/">Home</a> |
-  <a href="/tasks">Tasks</a> |
-  <a href="/contact">Contact</a>
+  <a href="/">Home</a>
+  <a href="/tasks">Tasks</a>
+  <a href="/login">Login</a>
 </nav>
 
 <div class="container">
   <h1>TaskBoard</h1>
   <p class="description">
-    TaskBoard is a simple full-stack web app for managing tasks with MongoDB Atlas.
+    TaskBoard is a simple web application for managing tasks.
+    Users can create, update and delete tasks after logging in.
   </p>
-
-  <h2>API Test Links</h2>
-  <ul>
-    <li><a href="/api/tasks" target="_blank">/api/tasks</a> - View all tasks (JSON)</li>
-    <li><a href="/api/info" target="_blank">/api/info</a> - Project information (JSON)</li>
-  </ul>
-
-  <h2>Pages</h2>
-  <ul>
-    <li><a href="/tasks">Task Management</a> - Create, edit, delete tasks</li>
-    <li><a href="/contact">Contact Form</a> - contact page</li>
-  </ul>
 
   <h2>Features</h2>
   <ul>
-    <li>MongoDB Atlas database integration</li>
-    <li>Full CRUD REST API for tasks</li>
-    <li>Web interface with dynamic loading (fetch)</li>
+    <li>Session-based authentication</li>
+    <li>Protected CRUD operations</li>
+    <li>MongoDB Atlas database</li>
+    <li>Deployed production application</li>
   </ul>
 </div>
 

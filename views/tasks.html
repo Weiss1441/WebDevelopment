@@ -11,7 +11,9 @@
 <nav>
   <a href="/">Home</a> |
   <a href="/tasks">Tasks</a> |
-  <a href="/contact">Contact</a>
+  <a href="/contact">Contact</a> |
+  <a href="/login" id="loginLink">Login</a>
+  <button id="logoutBtn" style="display:none; margin-left:10px;">Logout</button>
 </nav>
 
 <div class="container">
@@ -81,7 +83,11 @@
 
   const tasksList = document.getElementById('tasksList');
 
+  const loginLink = document.getElementById('loginLink');
+  const logoutBtn = document.getElementById('logoutBtn');
+
   let editMode = false;
+  let isAuthed = false;
 
   function showMessage(text, type) {
     msgEl.textContent = text;
@@ -96,17 +102,55 @@
     return div.innerHTML;
   }
 
+  function setAuthUI(authenticated) {
+    isAuthed = authenticated;
+
+    // показываем/прячем login/logout
+    loginLink.style.display = authenticated ? 'none' : 'inline';
+    logoutBtn.style.display = authenticated ? 'inline-block' : 'none';
+
+    // блокируем форму если не залогинен (чтобы было понятно на защите)
+    Array.from(taskForm.elements).forEach(el => el.disabled = !authenticated);
+    submitBtn.disabled = !authenticated;
+
+    if (!authenticated) {
+      cancelEdit();
+    }
+  }
+
   async function fetchJson(url, options) {
     const res = await fetch(url, options);
     const text = await res.text();
     let data = null;
-    try { data = text ? JSON.parse(text) : null; } catch { data = text; }
+
+    try { data = text ? JSON.parse(text) : null; }
+    catch { data = text; }
 
     if (!res.ok) {
+      // если 401 -> логин нужен
+      if (res.status === 401) {
+        setAuthUI(false);
+        throw new Error('Unauthorized. Please login.');
+      }
       const errMsg = (data && data.error) ? data.error : (typeof data === 'string' ? data : 'Request failed');
       throw new Error(errMsg);
     }
     return data;
+  }
+
+  async function checkAuth() {
+    try {
+      const me = await fetchJson('/auth/me');
+      setAuthUI(!!me?.authenticated);
+      // если хочешь строго: редиректить на /login
+      if (!me?.authenticated) {
+        // можно комментировать, если хочешь чтобы чтение было доступно гостям
+        window.location.href = '/login';
+      }
+    } catch {
+      setAuthUI(false);
+      window.location.href = '/login';
+    }
   }
 
   async function loadTasks() {
@@ -140,8 +184,15 @@
           </div>
         `;
 
-        div.querySelector('.btn-edit').onclick = () => editTask(t);
-        div.querySelector('.btn-delete').onclick = () => deleteTask(t._id);
+        const btnEdit = div.querySelector('.btn-edit');
+        const btnDelete = div.querySelector('.btn-delete');
+
+        // если не залогинен - блокируем
+        btnEdit.disabled = !isAuthed;
+        btnDelete.disabled = !isAuthed;
+
+        btnEdit.onclick = () => editTask(t);
+        btnDelete.onclick = () => deleteTask(t._id);
 
         tasksList.appendChild(div);
       });
@@ -193,6 +244,11 @@
   };
 
   function editTask(task) {
+    if (!isAuthed) {
+      showMessage('Login required', 'error');
+      return;
+    }
+
     editMode = true;
     taskIdEl.value = task._id;
     titleEl.value = task.title || '';
@@ -218,6 +274,11 @@
   cancelBtn.onclick = cancelEdit;
 
   async function deleteTask(id) {
+    if (!isAuthed) {
+      showMessage('Login required', 'error');
+      return;
+    }
+
     if (!confirm('Delete task?')) return;
 
     try {
@@ -230,7 +291,18 @@
     }
   }
 
-  document.addEventListener('DOMContentLoaded', loadTasks);
+  logoutBtn.onclick = async () => {
+    try {
+      await fetchJson('/auth/logout', { method: 'POST' });
+    } catch {}
+    setAuthUI(false);
+    window.location.href = '/login';
+  };
+
+  document.addEventListener('DOMContentLoaded', async () => {
+    await checkAuth();
+    await loadTasks();
+  });
 </script>
 
 </body>
