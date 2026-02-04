@@ -12,6 +12,8 @@ through the web interface.
 - Iskander
 - Group: SE-2427
 
+Deployed project: https://webdevelopment-vl4x.onrender.com/
+
 ---
 
 ## Project Topic
@@ -149,4 +151,30 @@ Assignment 3 – Part 1 by adding:
 
 ### `GET /api/info`
 - Returns project metadata in JSON format
+
+## Setup Instructions
+
+### Local Setup
+
+1. Clone the repository:
+```bash
+git clone https://github.com/username/taskboard.git
+cd taskboard
+
+npm install
+
+### Create a .env file in the project root:
+PORT=3000
+MONGO_URI=connection_string
+DB_NAME=taskboard_db
+COLLECTION_NAME=tasks
+
+npm start
+
+## Open in browser:
+http://localhost:3000
+
+
+
+
 
