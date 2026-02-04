@@ -1,0 +1,257 @@
+/* ===== Base ===== */
+:root {
+  --bg: #edede0;
+  --card: #ffffff;
+  --text: #243447;
+  --muted: #5b6777;
+
+  --primary: #2980b9;
+  --primary-dark: #1f6391;
+
+  --border: #d7d7cc;
+  --shadow: 0 10px 30px rgba(0,0,0,0.08);
+  --shadow-soft: 0 4px 12px rgba(0,0,0,0.06);
+
+  --radius: 18px;
+  --radius-sm: 12px;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  font-family: Arial, sans-serif;
+  background-color: var(--bg);
+  margin: 0;
+  padding: 0;
+  line-height: 1.6;
+  color: var(--text);
+}
+
+/* ===== Links ===== */
+a {
+  text-decoration: none;
+  color: var(--text);
+  font-weight: 700;
+}
+
+a:hover { color: var(--primary); }
+
+/* ===== Navigation ===== */
+nav {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: rgba(244, 244, 244, 0.85);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid rgba(0,0,0,0.06);
+  padding: 14px 10px;
+  text-align: center;
+}
+
+nav a {
+  display: inline-block;
+  margin: 0 6px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  transition: background-color 0.2s, color 0.2s, transform 0.1s;
+}
+
+nav a:hover {
+  background-color: var(--primary);
+  color: #fff;
+  transform: translateY(-1px);
+}
+
+/* ===== Container ===== */
+.container {
+  max-width: 900px;
+  margin: 28px auto;
+  background: var(--card);
+  padding: 28px 34px;
+  border-radius: 26px;
+  box-shadow: var(--shadow);
+  border: 1px solid rgba(0,0,0,0.04);
+}
+
+@media (max-width: 700px) {
+  .container {
+    margin: 16px;
+    padding: 18px 16px;
+    border-radius: 18px;
+  }
+}
+
+/* ===== Headings ===== */
+h1 {
+  text-align: center;
+  margin: 0 0 6px;
+  color: var(--text);
+  letter-spacing: 0.2px;
+}
+
+h2 {
+  margin-top: 28px;
+  margin-bottom: 10px;
+  color: #2f3b4b;
+}
+
+.description {
+  text-align: center;
+  margin: 0 0 22px;
+  color: var(--muted);
+}
+
+/* ===== Divider ===== */
+hr {
+  border: none;
+  border-top: 1px solid rgba(0,0,0,0.08);
+  margin: 22px 0;
+}
+
+/* ===== Forms ===== */
+form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+label {
+  margin-top: 6px;
+  font-weight: 700;
+  color: #2c3e50;
+}
+
+input[type="text"],
+input[type="email"],
+textarea,
+select {
+  padding: 12px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 15px;
+  width: 100%;
+  background: #fff;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s, transform 0.05s;
+}
+
+textarea {
+  resize: vertical;
+  min-height: 110px;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  border-color: rgba(41, 128, 185, 0.65);
+  box-shadow: 0 0 0 4px rgba(41,128,185,0.15);
+}
+
+input:active,
+textarea:active,
+select:active {
+  transform: translateY(0.5px);
+}
+
+/* ===== Buttons ===== */
+button {
+  margin-top: 10px;
+  padding: 12px 14px;
+  border: none;
+  background-color: var(--primary);
+  color: white;
+  font-size: 15px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: transform 0.08s, background-color 0.2s, box-shadow 0.2s;
+  box-shadow: var(--shadow-soft);
+}
+
+button:hover {
+  background-color: var(--primary-dark);
+  transform: translateY(-1px);
+}
+
+button:active {
+  transform: translateY(0px);
+  box-shadow: none;
+}
+
+/* Optional: subtle secondary buttons (your inline styles still work) */
+button[style*="background:#6c757d"],
+button[style*="background: #6c757d"] {
+  background: #6c757d !important;
+}
+button[style*="background:#6c757d"]:hover,
+button[style*="background: #6c757d"]:hover {
+  background: #575f66 !important;
+}
+
+/* ===== Message banners ===== */
+#message {
+  padding: 12px 14px;
+  border-radius: 14px;
+  display: none;
+  border: 1px solid rgba(0,0,0,0.06);
+  box-shadow: var(--shadow-soft);
+}
+
+#message.success {
+  display: block;
+  background: #e6f7ec;
+  color: #1e5b33;
+  border-color: rgba(30,91,51,0.18);
+}
+
+#message.error {
+  display: block;
+  background: #fde8ea;
+  color: #7a1f29;
+  border-color: rgba(122,31,41,0.18);
+}
+
+/* ===== Cards / result boxes / task items ===== */
+.note-item,
+.result-box {
+  background-color: #f7f7f2;
+  border-left: 6px solid var(--primary);
+  padding: 14px 16px;
+  margin-top: 14px;
+  border-radius: 16px;
+  box-shadow: var(--shadow-soft);
+  border: 1px solid rgba(0,0,0,0.05);
+}
+
+.note-item h3 {
+  margin: 0 0 6px;
+}
+
+.note-item p {
+  margin: 0;
+  color: #2f3b4b;
+}
+
+/* ===== Action buttons inside items ===== */
+.note-actions {
+  margin-top: 12px;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.btn-edit {
+  background: #28a745 !important;
+}
+.btn-edit:hover {
+  background: #218838 !important;
+}
+
+.btn-delete {
+  background: #dc3545 !important;
+}
+.btn-delete:hover {
+  background: #c82333 !important;
+}
+
+/* ===== Small utilities ===== */
+small { font-weight: 600; color: #5f6b7a; }

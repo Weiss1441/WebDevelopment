@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TaskBoard - Tasks</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+<nav>
+  <a href="/">Home</a> |
+  <a href="/tasks">Tasks</a> |
+  <a href="/contact">Contact</a>
+</nav>
+
+<div class="container">
+  <h1>Task Management</h1>
+  <div id="message" style="display:none;"></div>
+
+  <h2 id="form-title">Create New Task</h2>
+  <form id="taskForm">
+    <input type="hidden" id="taskId" />
+
+    <label>Title</label>
+    <input type="text" id="title" required />
+
+    <label>Details</label>
+    <textarea id="details" required></textarea>
+
+    <label>Status</label>
+    <select id="status">
+      <option value="todo">Todo</option>
+      <option value="in-progress">In Progress</option>
+      <option value="done">Done</option>
+    </select>
+
+    <button type="submit" id="submitBtn">Create Task</button>
+    <button type="button" id="cancelBtn" style="display:none;background:#6c757d;">Cancel</button>
+  </form>
+
+  <hr />
+
+  <h2>Filter & Sort</h2>
+  <label>Filter by title (STRICT)</label>
+  <input type="text" id="filterTitle" placeholder="Exact title match..." />
+
+  <label>Sort</label>
+  <select id="sortBy">
+    <option value="">None</option>
+    <option value="title">Title A → Z</option>
+    <option value="-title">Title Z → A</option>
+    <option value="-createdAt">Newest first</option>
+    <option value="createdAt">Oldest first</option>
+  </select>
+
+  <button id="applyFilter">Apply</button>
+  <button id="resetFilter" style="background:#6c757d;">Reset</button>
+
+  <hr />
+
+  <h2>All Tasks</h2>
+  <div id="tasksList"></div>
+</div>
+
+<script>
+  const msgEl = document.getElementById('message');
+
+  const taskForm = document.getElementById('taskForm');
+  const taskIdEl = document.getElementById('taskId');
+  const titleEl = document.getElementById('title');
+  const detailsEl = document.getElementById('details');
+  const statusEl = document.getElementById('status');
+
+  const filterTitleEl = document.getElementById('filterTitle');
+  const sortByEl = document.getElementById('sortBy');
+
+  const submitBtn = document.getElementById('submitBtn');
+  const cancelBtn = document.getElementById('cancelBtn');
+  const formTitle = document.getElementById('form-title');
+
+  const tasksList = document.getElementById('tasksList');
+
+  let editMode = false;
+
+  function showMessage(text, type) {
+    msgEl.textContent = text;
+    msgEl.className = type;
+    msgEl.style.display = 'block';
+    setTimeout(() => (msgEl.style.display = 'none'), 3000);
+  }
+
+  function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text ?? '';
+    return div.innerHTML;
+  }
+
+  async function fetchJson(url, options) {
+    const res = await fetch(url, options);
+    const text = await res.text();
+    let data = null;
+    try { data = text ? JSON.parse(text) : null; } catch { data = text; }
+
+    if (!res.ok) {
+      const errMsg = (data && data.error) ? data.error : (typeof data === 'string' ? data : 'Request failed');
+      throw new Error(errMsg);
+    }
+    return data;
+  }
+
+  async function loadTasks() {
+    const title = filterTitleEl.value.trim();
+    const sort = sortByEl.value;
+
+    const params = [];
+    if (title) params.push(`title=${encodeURIComponent(title)}`);
+    if (sort) params.push(`sort=${encodeURIComponent(sort)}`);
+
+    const url = '/api/tasks' + (params.length ? `?${params.join('&')}` : '');
+
+    try {
+      const tasks = await fetchJson(url);
+      tasksList.innerHTML = '';
+
+      if (!tasks || !tasks.length) {
+        tasksList.innerHTML = '<p>No tasks found</p>';
+        return;
+      }
+
+      tasks.forEach((t) => {
+        const div = document.createElement('div');
+        div.className = 'note-item';
+        div.innerHTML = `
+          <h3>${escapeHtml(t.title)} <small style="color:#666;">(${escapeHtml(t.status)})</small></h3>
+          <p>${escapeHtml(t.details)}</p>
+          <div class="note-actions">
+            <button type="button" class="btn-edit">Edit</button>
+            <button type="button" class="btn-delete">Delete</button>
+          </div>
+        `;
+
+        div.querySelector('.btn-edit').onclick = () => editTask(t);
+        div.querySelector('.btn-delete').onclick = () => deleteTask(t._id);
+
+        tasksList.appendChild(div);
+      });
+    } catch (err) {
+      console.error(err);
+      showMessage(err.message || 'Error loading tasks', 'error');
+    }
+  }
+
+  document.getElementById('applyFilter').onclick = loadTasks;
+  document.getElementById('resetFilter').onclick = () => {
+    filterTitleEl.value = '';
+    sortByEl.value = '';
+    loadTasks();
+  };
+
+  taskForm.onsubmit = async (e) => {
+    e.preventDefault();
+
+    const data = {
+      title: titleEl.value.trim(),
+      details: detailsEl.value,
+      status: statusEl.value
+    };
+
+    if (!data.title || !data.details) {
+      showMessage('Title and details are required', 'error');
+      return;
+    }
+
+    const id = taskIdEl.value;
+    const method = editMode ? 'PUT' : 'POST';
+    const url = editMode ? `/api/tasks/${id}` : '/api/tasks';
+
+    try {
+      const result = await fetchJson(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+
+      showMessage(editMode ? 'Updated!' : `Created! id=${result?.id || ''}`, 'success');
+      cancelEdit();
+      await loadTasks();
+    } catch (err) {
+      console.error(err);
+      showMessage(err.message || 'Error', 'error');
+    }
+  };
+
+  function editTask(task) {
+    editMode = true;
+    taskIdEl.value = task._id;
+    titleEl.value = task.title || '';
+    detailsEl.value = task.details || '';
+    statusEl.value = task.status || 'todo';
+
+    formTitle.textContent = 'Edit Task';
+    submitBtn.textContent = 'Update Task';
+    cancelBtn.style.display = 'inline-block';
+  }
+
+  function cancelEdit() {
+    editMode = false;
+    taskForm.reset();
+    taskIdEl.value = '';
+    statusEl.value = 'todo';
+
+    formTitle.textContent = 'Create New Task';
+    submitBtn.textContent = 'Create Task';
+    cancelBtn.style.display = 'none';
+  }
+
+  cancelBtn.onclick = cancelEdit;
+
+  async function deleteTask(id) {
+    if (!confirm('Delete task?')) return;
+
+    try {
+      await fetchJson(`/api/tasks/${id}`, { method: 'DELETE' });
+      showMessage('Deleted!', 'success');
+      await loadTasks();
+    } catch (err) {
+      console.error(err);
+      showMessage(err.message || 'Delete failed', 'error');
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', loadTasks);
+</script>
+
+</body>
+</html>
