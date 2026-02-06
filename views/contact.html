@@ -1,8 +1,10 @@
+<!-- views/contact.html (ГОТОВЫЙ ФАЙЛ, тоже с login/logout как ты просил) -->
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Contact - TaskBoard</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TaskBoard - Contact</title>
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
@@ -10,25 +12,59 @@
 <nav>
   <a href="/">Home</a> |
   <a href="/tasks">Tasks</a> |
-  <a href="/contact">Contact</a>
+  <a href="/contact">Contact</a> |
+  <a href="/login" id="loginLink">Login</a>
+  <button id="logoutBtn" style="display:none; margin-left:10px;">Logout</button>
 </nav>
 
 <div class="container">
-  <h1>Contact Us</h1>
+  <h1>Contact</h1>
 
-  <form action="/contact" method="POST">
-    <label>Name:</label>
-    <input type="text" name="name" required>
-
-    <label>Email:</label>
-    <input type="email" name="email">
-
-    <label>Message:</label>
+  <form method="POST" action="/contact">
+    <label>Your message</label>
     <textarea name="message" required></textarea>
-
-    <button type="submit">Send Message</button>
+    <button type="submit">Send</button>
   </form>
+
+  <div id="authHint" style="margin-top:10px; color:#666;"></div>
 </div>
+
+<script>
+  const loginLink = document.getElementById('loginLink');
+  const logoutBtn = document.getElementById('logoutBtn');
+  const authHint = document.getElementById('authHint');
+
+  async function fetchJson(url, options) {
+    const res = await fetch(url, options);
+    const text = await res.text();
+    let data = null;
+    try { data = text ? JSON.parse(text) : null; } catch { data = null; }
+    return { res, data };
+  }
+
+  function setAuthUI(authenticated, role) {
+    loginLink.style.display = authenticated ? 'none' : 'inline';
+    logoutBtn.style.display = authenticated ? 'inline-block' : 'none';
+    authHint.textContent = authenticated ? `Logged in (${role || 'user'})` : 'Not logged in';
+  }
+
+  async function checkAuth() {
+    const { res, data } = await fetchJson('/api/auth/me');
+    if (!res.ok) {
+      setAuthUI(false, null);
+      return;
+    }
+    setAuthUI(!!data?.authenticated, data?.role || null);
+  }
+
+  logoutBtn.addEventListener('click', async () => {
+    await fetchJson('/api/auth/logout', { method: 'POST' });
+    setAuthUI(false, null);
+    window.location.href = '/login';
+  });
+
+  document.addEventListener('DOMContentLoaded', checkAuth);
+</script>
 
 </body>
 </html>

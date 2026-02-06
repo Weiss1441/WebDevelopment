@@ -4,87 +4,41 @@
   <meta charset="UTF-8">
   <title>Login</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #edede0;
-      margin: 0;
-      padding: 0;
-    }
-
-    .container {
-      max-width: 400px;
-      margin: 100px auto;
-      background: #fff;
-      padding: 30px;
-      border-radius: 20px;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-    }
-
-    h1 {
-      text-align: center;
-      margin-bottom: 20px;
-    }
-
-    label {
-      display: block;
-      margin-top: 15px;
-      font-weight: bold;
-    }
-
-    input {
-      width: 100%;
-      padding: 10px;
-      margin-top: 5px;
-      border-radius: 10px;
-      border: 1px solid #ccc;
-      box-sizing: border-box;
-    }
-
-    button {
-      width: 100%;
-      margin-top: 25px;
-      padding: 12px;
-      background: #2980b9;
-      color: #fff;
-      border: none;
-      border-radius: 10px;
-      font-size: 16px;
-      cursor: pointer;
-    }
-
-    button:hover {
-      background: #1f6391;
-    }
-
-    .error {
-      margin-top: 15px;
-      color: #c0392b;
-      text-align: center;
-    }
-
-    .nav {
-      text-align: center;
-      margin-top: 20px;
-    }
-
-    a {
-      color: #2980b9;
-      text-decoration: none;
-      font-weight: bold;
-    }
+    body { font-family: Arial, sans-serif; background:#edede0; margin:0; padding:0; }
+    .container { max-width:400px; margin:100px auto; background:#fff; padding:30px; border-radius:20px; box-shadow:0 4px 10px rgba(0,0,0,.1); }
+    h1 { text-align:center; margin-bottom:20px; }
+    label { display:block; margin-top:15px; font-weight:bold; }
+    input { width:100%; padding:10px; margin-top:5px; border-radius:10px; border:1px solid #ccc; box-sizing:border-box; }
+    button { width:100%; margin-top:25px; padding:12px; background:#2980b9; color:#fff; border:none; border-radius:10px; font-size:16px; cursor:pointer; }
+    button:hover { background:#1f6391; }
+    .error { margin-top:15px; color:#c0392b; text-align:center; }
+    .nav { text-align:center; margin-top:20px; }
+    a { color:#2980b9; text-decoration:none; font-weight:bold; }
   </style>
 </head>
 <body>
-
 <div class="container">
   <h1>Login</h1>
 
-  <form id="loginForm">
+  <form id="loginForm" autocomplete="off">
     <label>Email</label>
-    <input type="email" id="email" required>
+    <input
+      type="email"
+      id="email"
+      required
+      autocomplete="off"
+      autocapitalize="off"
+      autocorrect="off"
+      spellcheck="false"
+    >
 
     <label>Password</label>
-    <input type="password" id="password" required>
+    <input
+      type="password"
+      id="password"
+      required
+      autocomplete="new-password"
+    >
 
     <button type="submit">Login</button>
   </form>
@@ -100,25 +54,34 @@
 document.getElementById('loginForm').addEventListener('submit', async (e) => {
   e.preventDefault();
 
-  const email = document.getElementById('email').value;
+  const email = document.getElementById('email').value.trim();
   const password = document.getElementById('password').value;
   const errorBox = document.getElementById('error');
 
   errorBox.textContent = '';
 
-  const res = await fetch('/auth/login', {
+  const res = await fetch('/api/auth/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, password })
   });
 
-  if (res.ok) {
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    errorBox.textContent = data.error || 'Invalid credentials';
+    return;
+  }
+
+  // confirm session is active
+  const meRes = await fetch('/api/auth/me');
+  const me = await meRes.json().catch(() => ({}));
+
+  if (me?.authenticated) {
     window.location.href = '/tasks';
   } else {
-    errorBox.textContent = 'Invalid credentials';
+    errorBox.textContent = 'Login failed (session not created). Try again.';
   }
 });
 </script>
-
 </body>
 </html>
