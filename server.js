@@ -80,10 +80,6 @@ function requireAuth(req, res, next) {
   return res.status(401).json({ error: 'unauthorized' });
 }
 
-function isAdmin(req) {
-  return req.session?.role === 'admin';
-}
-
 function toClientTask(t) {
   return { ...t, _id: t._id.toString() };
 }
@@ -147,13 +143,11 @@ app.get('/api/auth/me', (req, res) => {
   });
 });
 
-// GET tasks (only own, admin = all)
+// GET tasks (only own)
 app.get('/api/tasks', requireAuth, async (req, res) => {
   const { title, sort } = req.query;
 
-  const filter = isAdmin(req)
-    ? {}
-    : { userId: req.session.userId };
+  const filter = { userId: req.session.userId };
 
   if (title)
     filter.title = { $regex: `^${escapeRegex(title)}$`, $options: 'i' };
@@ -193,7 +187,7 @@ app.put('/api/tasks/:id', requireAuth, async (req, res) => {
 
   const filter = {
     _id: new ObjectId(id),
-    ...(isAdmin(req) ? {} : { userId: req.session.userId }),
+    userId: req.session.userId,
   };
 
   const result = await tasksCollection.updateOne(filter, {
@@ -221,7 +215,7 @@ app.delete('/api/tasks/:id', requireAuth, async (req, res) => {
 
   const result = await tasksCollection.deleteOne({
     _id: new ObjectId(id),
-    ...(isAdmin(req) ? {} : { userId: req.session.userId }),
+    userId: req.session.userId,
   });
 
   if (!result.deletedCount)
