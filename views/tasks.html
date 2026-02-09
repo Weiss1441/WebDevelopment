@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>TaskBoard - Tasks</title>
+  <title>Tasks</title>
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
@@ -11,7 +11,6 @@
 <nav>
   <a href="/">Home</a> |
   <a href="/tasks">Tasks</a> |
-  <a href="/contact">Contact</a> |
   <a href="/login" id="loginLink">Login</a>
   <button id="logoutBtn" style="display:none; margin-left:10px;">Logout</button>
 </nav>
@@ -46,51 +45,14 @@
     </select>
 
     <label>Category</label>
-    <select id="categorySelect">
-      <option value="study">Study</option>
-      <option value="work">Work</option>
-      <option value="personal">Personal</option>
-      <option value="health">Health</option>
-      <option value="finance">Finance</option>
-      <option value="shopping">Shopping</option>
-      <option value="other">Other...</option>
-    </select>
-
-    <input
-      type="text"
-      id="categoryOther"
-      placeholder="Enter your category..."
-      style="display:none; margin-top:8px;"
-    />
+    <input type="text" id="category" required />
 
     <label>Deadline</label>
     <input type="date" id="deadline" />
 
     <button type="submit" id="submitBtn">Create Task</button>
-    <button type="button" id="cancelBtn" style="display:none;background:#6c757d;">Cancel</button>
+    <button type="button" id="cancelBtn" style="display:none;">Cancel</button>
   </form>
-
-  <hr />
-
-  <h2>Filter & Sort</h2>
-  <label>Filter by title (STRICT)</label>
-  <input type="text" id="filterTitle" placeholder="Exact title match..." />
-
-  <label>Sort</label>
-  <select id="sortBy">
-    <option value="">None</option>
-    <option value="title">Title A → Z</option>
-    <option value="-title">Title Z → A</option>
-    <option value="-createdAt">Newest first</option>
-    <option value="createdAt">Oldest first</option>
-    <option value="deadline">Deadline soonest</option>
-    <option value="-deadline">Deadline latest</option>
-    <option value="priority">Priority (A→Z)</option>
-    <option value="-priority">Priority (Z→A)</option>
-  </select>
-
-  <button id="applyFilter">Apply</button>
-  <button id="resetFilter" style="background:#6c757d;">Reset</button>
 
   <hr />
 
@@ -99,331 +61,161 @@
 </div>
 
 <script>
-  const msgEl = document.getElementById('message');
+let isAuthed = false;
+let isAdmin = false;
+let editMode = false;
 
-  const taskForm = document.getElementById('taskForm');
-  const taskIdEl = document.getElementById('taskId');
-  const titleEl = document.getElementById('title');
-  const detailsEl = document.getElementById('details');
-  const statusEl = document.getElementById('status');
-  const priorityEl = document.getElementById('priority');
+const loginLink = document.getElementById('loginLink');
+const logoutBtn = document.getElementById('logoutBtn');
+const tasksList = document.getElementById('tasksList');
 
-  const categorySelectEl = document.getElementById('categorySelect');
-  const categoryOtherEl = document.getElementById('categoryOther');
+const taskForm = document.getElementById('taskForm');
+const taskIdEl = document.getElementById('taskId');
+const titleEl = document.getElementById('title');
+const detailsEl = document.getElementById('details');
+const statusEl = document.getElementById('status');
+const priorityEl = document.getElementById('priority');
+const categoryEl = document.getElementById('category');
+const deadlineEl = document.getElementById('deadline');
+const cancelBtn = document.getElementById('cancelBtn');
+const formTitle = document.getElementById('form-title');
 
-  const deadlineEl = document.getElementById('deadline');
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text || '';
+  return div.innerHTML;
+}
 
-  const filterTitleEl = document.getElementById('filterTitle');
-  const sortByEl = document.getElementById('sortBy');
+async function fetchJson(url, options) {
+  const res = await fetch(url, options);
+  const data = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(data?.error || 'request failed');
+  return data;
+}
 
-  const submitBtn = document.getElementById('submitBtn');
-  const cancelBtn = document.getElementById('cancelBtn');
-  const formTitle = document.getElementById('form-title');
+async function checkAuth() {
+  try {
+    const me = await fetchJson('/api/auth/me');
+    isAuthed = me.authenticated;
+    isAdmin = me.role === 'admin';
 
-  const tasksList = document.getElementById('tasksList');
+    loginLink.style.display = isAuthed ? 'none' : 'inline';
+    logoutBtn.style.display = isAuthed ? 'inline-block' : 'none';
 
-  const loginLink = document.getElementById('loginLink');
-  const logoutBtn = document.getElementById('logoutBtn');
+    Array.from(taskForm.elements).forEach(el => el.disabled = !isAuthed);
+  } catch {
+    isAuthed = false;
+    isAdmin = false;
+  }
+}
 
-  let editMode = false;
-  let isAuthed = false;
+async function loadTasks() {
+  if (!isAuthed) return;
 
-  const KNOWN_CATEGORIES = new Set(['study','work','personal','health','finance','shopping']);
+  const url = isAdmin ? '/api/admin/tasks' : '/api/tasks';
 
-  function showMessage(text, type) {
-    msgEl.textContent = text;
-    msgEl.className = type;
-    msgEl.style.display = 'block';
-    setTimeout(() => (msgEl.style.display = 'none'), 3000);
+  const tasks = await fetchJson(url);
+  tasksList.innerHTML = '';
+
+  if (!tasks.length) {
+    tasksList.innerHTML = '<p>No tasks</p>';
+    return;
   }
 
-  function escapeHtml(text) {
+  tasks.forEach(t => {
     const div = document.createElement('div');
-    div.textContent = text ?? '';
-    return div.innerHTML;
-  }
+    div.className = 'note-item';
 
-  function formatDateForUI(dateValue) {
-    if (!dateValue) return '';
-    const d = new Date(dateValue);
-    if (isNaN(d.getTime())) return '';
-    const yyyy = d.getFullYear();
-    const mm = String(d.getMonth() + 1).padStart(2, '0');
-    const dd = String(d.getDate()).padStart(2, '0');
-    return `${yyyy}-${mm}-${dd}`;
-  }
+    div.innerHTML = `
+      <h3>${escapeHtml(t.title)}</h3>
+      <p>${escapeHtml(t.details)}</p>
+      <p><b>Status:</b> ${escapeHtml(t.status)}</p>
+      <p><b>Priority:</b> ${escapeHtml(t.priority)}</p>
+      <p><b>Category:</b> ${escapeHtml(t.category)}</p>
+      <div class="note-actions">
+        <button>Edit</button>
+        <button>Delete</button>
+      </div>
+    `;
 
-  function prettyDeadline(dateValue) {
-    if (!dateValue) return '—';
-    const d = new Date(dateValue);
-    if (isNaN(d.getTime())) return '—';
-    return d.toLocaleDateString();
-  }
+    const [editBtn, delBtn] = div.querySelectorAll('button');
 
-  function todayLocalISO() {
-    const d = new Date();
-    const yyyy = d.getFullYear();
-    const mm = String(d.getMonth() + 1).padStart(2, '0');
-    const dd = String(d.getDate()).padStart(2, '0');
-    return `${yyyy}-${mm}-${dd}`;
-  }
+    editBtn.onclick = () => editTask(t);
+    delBtn.onclick = () => deleteTask(t._id);
 
-  function setAuthUI(authenticated) {
-    isAuthed = authenticated;
-
-    loginLink.style.display = authenticated ? 'none' : 'inline';
-    logoutBtn.style.display = authenticated ? 'inline-block' : 'none';
-
-    Array.from(taskForm.elements).forEach(el => el.disabled = !authenticated);
-    submitBtn.disabled = !authenticated;
-
-    if (!authenticated) cancelEdit();
-  }
-
-  async function fetchJson(url, options) {
-    const res = await fetch(url, options);
-    const text = await res.text();
-    let data = null;
-
-    try { data = text ? JSON.parse(text) : null; }
-    catch { data = text; }
-
-    if (!res.ok) {
-      if (res.status === 401) {
-        setAuthUI(false);
-        throw new Error('Unauthorized. Please login.');
-      }
-      const errMsg = (data && data.error) ? data.error : (typeof data === 'string' ? data : 'Request failed');
-      throw new Error(errMsg);
-    }
-    return data;
-  }
-
-  async function checkAuth() {
-    try {
-      const me = await fetchJson('/api/auth/me');
-      setAuthUI(!!me?.authenticated);
-    } catch {
-      setAuthUI(false);
-    }
-  }
-
-  function updateCategoryUI() {
-    const isOther = categorySelectEl.value === 'other';
-    categoryOtherEl.style.display = isOther ? 'block' : 'none';
-    categoryOtherEl.required = isOther;
-    if (!isOther) categoryOtherEl.value = '';
-  }
-
-  function getCategoryValue() {
-    if (categorySelectEl.value === 'other') {
-      return (categoryOtherEl.value || '').trim();
-    }
-    return categorySelectEl.value;
-  }
-
-  async function loadTasks() {
-    const title = filterTitleEl.value.trim();
-    const sort = sortByEl.value;
-
-    const params = [];
-    if (title) params.push(`title=${encodeURIComponent(title)}`);
-    if (sort) params.push(`sort=${encodeURIComponent(sort)}`);
-
-    const url = '/api/tasks' + (params.length ? `?${params.join('&')}` : '');
-
-    try {
-      const tasks = await fetchJson(url);
-      tasksList.innerHTML = '';
-
-      if (!tasks || !tasks.length) {
-        tasksList.innerHTML = '<p>No tasks found</p>';
-        return;
-      }
-
-      tasks.forEach((t) => {
-        const div = document.createElement('div');
-        div.className = 'note-item';
-
-        div.innerHTML = `
-          <h3>
-            ${escapeHtml(t.title)}
-            <small style="color:#666;">
-              (${escapeHtml(t.status)} | ${escapeHtml(t.priority || 'medium')} | ${escapeHtml(t.category || 'general')})
-            </small>
-          </h3>
-
-          <p>${escapeHtml(t.details)}</p>
-
-          <p style="margin-top:6px; color:#555;">
-            <b>Deadline:</b> ${escapeHtml(prettyDeadline(t.deadline))}
-          </p>
-
-          <div class="note-actions">
-            <button type="button" class="btn-edit">Edit</button>
-            <button type="button" class="btn-delete">Delete</button>
-          </div>
-        `;
-
-        const btnEdit = div.querySelector('.btn-edit');
-        const btnDelete = div.querySelector('.btn-delete');
-
-        btnEdit.disabled = !isAuthed;
-        btnDelete.disabled = !isAuthed;
-
-        btnEdit.onclick = () => editTask(t);
-        btnDelete.onclick = () => deleteTask(t._id);
-
-        tasksList.appendChild(div);
-      });
-    } catch (err) {
-      console.error(err);
-      showMessage(err.message || 'Error loading tasks', 'error');
-    }
-  }
-
-  document.getElementById('applyFilter').onclick = loadTasks;
-  document.getElementById('resetFilter').onclick = () => {
-    filterTitleEl.value = '';
-    sortByEl.value = '';
-    loadTasks();
-  };
-
-  taskForm.onsubmit = async (e) => {
-    e.preventDefault();
-
-    const categoryValue = getCategoryValue();
-    if (categorySelectEl.value === 'other' && !categoryValue) {
-      showMessage('Please enter your category', 'error');
-      return;
-    }
-
-    // ✅ deadline must be today or later (if provided)
-    const today = todayLocalISO();
-    if (deadlineEl.value && deadlineEl.value < today) {
-      showMessage('Deadline cannot be in the past', 'error');
-      return;
-    }
-
-    const data = {
-      title: titleEl.value.trim(),
-      details: detailsEl.value.trim(),
-      status: statusEl.value,
-      priority: priorityEl.value,
-      category: categoryValue,
-      deadline: deadlineEl.value || null
-    };
-
-    if (!data.title || !data.details || !data.category) {
-      showMessage('Title, details, category are required', 'error');
-      return;
-    }
-
-    const id = taskIdEl.value;
-    const method = editMode ? 'PUT' : 'POST';
-    const url = editMode ? `/api/tasks/${id}` : '/api/tasks';
-
-    try {
-      const result = await fetchJson(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      });
-
-      showMessage(editMode ? 'Updated!' : `Created! id=${result?.id || ''}`, 'success');
-      cancelEdit();
-      await loadTasks();
-    } catch (err) {
-      console.error(err);
-      showMessage(err.message || 'Error', 'error');
-    }
-  };
-
-  function editTask(task) {
-    if (!isAuthed) {
-      showMessage('Login required', 'error');
-      return;
-    }
-
-    editMode = true;
-    taskIdEl.value = task._id;
-
-    titleEl.value = task.title || '';
-    detailsEl.value = task.details || '';
-    statusEl.value = task.status || 'todo';
-    priorityEl.value = task.priority || 'medium';
-
-    const cat = (task.category || 'general').toString().trim();
-    if (KNOWN_CATEGORIES.has(cat)) {
-      categorySelectEl.value = cat;
-      categoryOtherEl.value = '';
-    } else {
-      categorySelectEl.value = 'other';
-      categoryOtherEl.value = cat;
-    }
-    updateCategoryUI();
-
-    deadlineEl.value = formatDateForUI(task.deadline);
-
-    formTitle.textContent = 'Edit Task';
-    submitBtn.textContent = 'Update Task';
-    cancelBtn.style.display = 'inline-block';
-  }
-
-  function cancelEdit() {
-    editMode = false;
-    taskForm.reset();
-
-    taskIdEl.value = '';
-    statusEl.value = 'todo';
-    priorityEl.value = 'medium';
-
-    categorySelectEl.value = 'study';
-    categoryOtherEl.value = '';
-    updateCategoryUI();
-
-    deadlineEl.value = '';
-
-    formTitle.textContent = 'Create New Task';
-    submitBtn.textContent = 'Create Task';
-    cancelBtn.style.display = 'none';
-  }
-
-  cancelBtn.onclick = cancelEdit;
-
-  async function deleteTask(id) {
-    if (!isAuthed) {
-      showMessage('Login required', 'error');
-      return;
-    }
-
-    if (!confirm('Delete task?')) return;
-
-    try {
-      await fetchJson(`/api/tasks/${id}`, { method: 'DELETE' });
-      showMessage('Deleted!', 'success');
-      await loadTasks();
-    } catch (err) {
-      console.error(err);
-      showMessage(err.message || 'Delete failed', 'error');
-    }
-  }
-
-  logoutBtn.onclick = async () => {
-    try {
-      await fetchJson('/api/auth/logout', { method: 'POST' });
-    } catch {}
-    setAuthUI(false);
-    window.location.href = '/login';
-  };
-
-  categorySelectEl.addEventListener('change', updateCategoryUI);
-
-  document.addEventListener('DOMContentLoaded', async () => {
-    updateCategoryUI();
-    await checkAuth();
-    await loadTasks();
+    tasksList.appendChild(div);
   });
+}
+
+function editTask(t) {
+  editMode = true;
+  taskIdEl.value = t._id;
+  titleEl.value = t.title;
+  detailsEl.value = t.details;
+  statusEl.value = t.status;
+  priorityEl.value = t.priority;
+  categoryEl.value = t.category;
+  deadlineEl.value = t.deadline ? t.deadline.slice(0,10) : '';
+
+  formTitle.textContent = 'Edit Task';
+  cancelBtn.style.display = 'inline-block';
+}
+
+cancelBtn.onclick = () => {
+  editMode = false;
+  taskForm.reset();
+  taskIdEl.value = '';
+  formTitle.textContent = 'Create New Task';
+  cancelBtn.style.display = 'none';
+};
+
+taskForm.onsubmit = async (e) => {
+  e.preventDefault();
+
+  const data = {
+    title: titleEl.value,
+    details: detailsEl.value,
+    status: statusEl.value,
+    priority: priorityEl.value,
+    category: categoryEl.value,
+    deadline: deadlineEl.value || null
+  };
+
+  const id = taskIdEl.value;
+  const base = isAdmin ? '/api/admin/tasks' : '/api/tasks';
+  const url = editMode ? `${base}/${id}` : base;
+  const method = editMode ? 'PUT' : 'POST';
+
+  await fetchJson(url, {
+    method,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  });
+
+  editMode = false;
+  taskForm.reset();
+  cancelBtn.style.display = 'none';
+  formTitle.textContent = 'Create New Task';
+  loadTasks();
+};
+
+async function deleteTask(id) {
+  if (!confirm('Delete task?')) return;
+
+  const base = isAdmin ? '/api/admin/tasks' : '/api/tasks';
+  await fetchJson(`${base}/${id}`, { method: 'DELETE' });
+  loadTasks();
+}
+
+logoutBtn.onclick = async () => {
+  await fetch('/api/auth/logout', { method: 'POST' });
+  window.location.href = '/login';
+};
+
+document.addEventListener('DOMContentLoaded', async () => {
+  await checkAuth();
+  await loadTasks();
+});
 </script>
 
 </body>
