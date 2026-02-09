@@ -2,25 +2,27 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Login</title>
+  <title>Register</title>
   <style>
     body { font-family: Arial, sans-serif; background:#edede0; margin:0; padding:0; }
     .container { max-width:400px; margin:100px auto; background:#fff; padding:30px; border-radius:20px; box-shadow:0 4px 10px rgba(0,0,0,.1); }
     h1 { text-align:center; margin-bottom:20px; }
     label { display:block; margin-top:15px; font-weight:bold; }
     input { width:100%; padding:10px; margin-top:5px; border-radius:10px; border:1px solid #ccc; box-sizing:border-box; }
-    button { width:100%; margin-top:25px; padding:12px; background:#2980b9; color:#fff; border:none; border-radius:10px; font-size:16px; cursor:pointer; }
-    button:hover { background:#1f6391; }
+    button { width:100%; margin-top:25px; padding:12px; background:#27ae60; color:#fff; border:none; border-radius:10px; font-size:16px; cursor:pointer; }
+    button:hover { background:#1e8c4f; }
     .error { margin-top:15px; color:#c0392b; text-align:center; }
+    .success { margin-top:15px; color:#27ae60; text-align:center; }
     .nav { text-align:center; margin-top:20px; }
     a { color:#2980b9; text-decoration:none; font-weight:bold; }
   </style>
 </head>
 <body>
-<div class="container">
-  <h1>Login</h1>
 
-  <form id="loginForm" autocomplete="off">
+<div class="container">
+  <h1>Register</h1>
+
+  <form id="registerForm" autocomplete="off">
     <label>Email</label>
     <input
       type="email"
@@ -37,53 +39,53 @@
       type="password"
       id="password"
       required
+      minlength="6"
       autocomplete="new-password"
     >
 
-    <button type="submit">Login</button>
+    <button type="submit">Create account</button>
   </form>
 
   <div class="error" id="error"></div>
+  <div class="success" id="success"></div>
 
   <div class="nav">
-  <a href="/register">Create account</a>
-  <br><br>
-  <a href="/">← Back to Home</a>
+    <a href="/login">← Back to Login</a>
+  </div>
 </div>
 
-
 <script>
-document.getElementById('loginForm').addEventListener('submit', async (e) => {
+document.getElementById('registerForm').addEventListener('submit', async (e) => {
   e.preventDefault();
 
   const email = document.getElementById('email').value.trim();
   const password = document.getElementById('password').value;
   const errorBox = document.getElementById('error');
+  const successBox = document.getElementById('success');
 
   errorBox.textContent = '';
+  successBox.textContent = '';
 
-  const res = await fetch('/api/auth/login', {
+  const res = await fetch('/api/auth/register', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, password })
   });
 
+  const data = await res.json().catch(() => ({}));
+
   if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    errorBox.textContent = data.error || 'Invalid credentials';
+    errorBox.textContent = data.error || 'Registration failed';
     return;
   }
 
-  // confirm session is active
-  const meRes = await fetch('/api/auth/me');
-  const me = await meRes.json().catch(() => ({}));
+  successBox.textContent = 'Account created. Redirecting...';
 
-  if (me?.authenticated) {
+  setTimeout(() => {
     window.location.href = '/tasks';
-  } else {
-    errorBox.textContent = 'Login failed (session not created). Try again.';
-  }
+  }, 800);
 });
 </script>
+
 </body>
 </html>
