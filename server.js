@@ -54,10 +54,11 @@ async function connectDB() {
 }
 connectDB();
 
-
 app.use(express.static('public'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+app.set('trust proxy', 1);
 
 app.use(
   session({
@@ -68,7 +69,7 @@ app.use(
     cookie: {
       httpOnly: true,
       sameSite: 'lax',
-      secure: process.env.NODE_ENV === 'production',
+      secure: 'auto',
       maxAge: 1000 * 60 * 60 * 24,
     },
   })
@@ -146,8 +147,6 @@ app.get('/api/auth/me', (req, res) => {
   });
 });
 
-
-
 // GET tasks (only own, admin = all)
 app.get('/api/tasks', requireAuth, async (req, res) => {
   const { title, sort } = req.query;
@@ -173,7 +172,7 @@ app.post('/api/tasks', requireAuth, async (req, res) => {
   const now = new Date();
 
   const result = await tasksCollection.insertOne({
-    userId: req.session.userId, // 🔐 OWNER
+    userId: req.session.userId,
     title: req.body.title,
     details: req.body.details,
     status: req.body.status || 'todo',
@@ -230,7 +229,6 @@ app.delete('/api/tasks/:id', requireAuth, async (req, res) => {
 
   res.json({ message: 'deleted' });
 });
-
 
 app.listen(PORT, () =>
   console.log(`✅ Server running: http://localhost:${PORT}`)
