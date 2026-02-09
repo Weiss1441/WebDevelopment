@@ -1,4 +1,4 @@
-// server.js — FINAL (Users have their own tasks)
+//server.js-FINAL
 
 const express = require('express');
 const path = require('path');
@@ -9,7 +9,6 @@ require('dotenv').config({ override: true });
 
 const app = express();
 
-/* ================= ENV ================= */
 const PORT = process.env.PORT || 3000;
 const MONGO_URI = process.env.MONGO_URI;
 const DB_NAME = process.env.DB_NAME || 'taskboard_db';
@@ -22,7 +21,6 @@ if (!MONGO_URI || !SESSION_SECRET) {
   process.exit(1);
 }
 
-/* ================= DB ================= */
 const client = new MongoClient(MONGO_URI);
 let tasksCollection;
 let usersCollection;
@@ -36,7 +34,6 @@ async function connectDB() {
 
   await tasksCollection.createIndex({ userId: 1, createdAt: -1 });
 
-  // seed admin
   const adminEmail = (process.env.ADMIN_EMAIL || '').toLowerCase();
   const adminPass = process.env.ADMIN_PASSWORD || '';
 
@@ -57,7 +54,7 @@ async function connectDB() {
 }
 connectDB();
 
-/* ================= MIDDLEWARE ================= */
+
 app.use(express.static('public'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -77,7 +74,6 @@ app.use(
   })
 );
 
-/* ================= HELPERS ================= */
 function requireAuth(req, res, next) {
   if (req.session?.userId) return next();
   return res.status(401).json({ error: 'unauthorized' });
@@ -95,14 +91,12 @@ function escapeRegex(str) {
   return String(str).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-/* ================= PAGES ================= */
 app.get('/', (_, res) => res.sendFile(path.join(__dirname, 'views/index.html')));
 app.get('/login', (_, res) => res.sendFile(path.join(__dirname, 'views/login.html')));
 app.get('/register', (_, res) => res.sendFile(path.join(__dirname, 'views/register.html')));
 app.get('/tasks', (_, res) => res.sendFile(path.join(__dirname, 'views/tasks.html')));
 app.get('/contact', (_, res) => res.sendFile(path.join(__dirname, 'views/contact.html')));
 
-/* ================= AUTH ================= */
 app.post('/api/auth/register', async (req, res) => {
   const email = (req.body.email || '').trim().toLowerCase();
   const password = req.body.password || '';
@@ -152,7 +146,7 @@ app.get('/api/auth/me', (req, res) => {
   });
 });
 
-/* ================= TASKS ================= */
+
 
 // GET tasks (only own, admin = all)
 app.get('/api/tasks', requireAuth, async (req, res) => {
@@ -237,7 +231,7 @@ app.delete('/api/tasks/:id', requireAuth, async (req, res) => {
   res.json({ message: 'deleted' });
 });
 
-/* ================= START ================= */
+
 app.listen(PORT, () =>
   console.log(`✅ Server running: http://localhost:${PORT}`)
 );
