@@ -38,21 +38,20 @@ app.use(
   session({
     name: 'sid',
     secret: SESSION_SECRET,
-    store: MongoStore.create({
-      mongoUrl: MONGO_URI,
-      collectionName: process.env.SESSIONS_COLLECTION || 'sessions',
-      ttl: 60 * 60 * 24,
-      autoRemove: 'native',
-    }),
     resave: false,
     saveUninitialized: false,
-    rolling: true,
+    store: MongoStore.create({
+      mongoUrl: MONGO_URI,
+      dbName: process.env.DB_NAME || 'taskboard_db',
+      collectionName: 'sessions',
+      ttl: 60 * 60 * 24
+    }),
     cookie: {
       httpOnly: true,
       sameSite: 'lax',
-      secure: NODE_ENV === 'production',
-      maxAge: 1000 * 60 * 60 * 24,
-    },
+      secure: 'auto',
+      maxAge: 1000 * 60 * 60 * 24
+    }
   })
 );
 
