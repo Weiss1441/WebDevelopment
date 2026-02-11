@@ -19,6 +19,8 @@ async function connectDB() {
   usersCollection = db.collection(USERS_COLLECTION);
 
   await tasksCollection.createIndex({ userId: 1, createdAt: -1 });
+  await tasksCollection.createIndex({ userId: 1, deadline: 1, createdAt: -1 });
+  await usersCollection.createIndex({ email: 1 }, { unique: true });
 
   const adminEmail = (process.env.ADMIN_EMAIL || '').toLowerCase();
   const adminPass = process.env.ADMIN_PASSWORD || '';

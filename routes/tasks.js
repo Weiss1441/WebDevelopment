@@ -13,11 +13,29 @@ function toClientTask(t) {
   return { ...t, _id: t._id.toString() };
 }
 
-// GET tasks (only own)
+function parsePagination(q) {
+  const hasPaging = q.page !== undefined || q.limit !== undefined;
+
+  const pageRaw = parseInt(q.page, 10);
+  const limitRaw = parseInt(q.limit, 10);
+
+  const page = Number.isFinite(pageRaw) && pageRaw > 0 ? pageRaw : 1;
+  let limit = Number.isFinite(limitRaw) && limitRaw > 0 ? limitRaw : 10;
+
+  if (limit > 50) limit = 50;
+
+  const skip = (page - 1) * limit;
+
+  return { hasPaging, page, limit, skip };
+}
+
+// GET tasks (only own) + filter/sort + pagination
 router.get('/', requireAuth, async (req, res) => {
   try {
     const { tasksCollection } = getCollections();
     const { title, sort } = req.query;
+
+    const { hasPaging, page, limit, skip } = parsePagination(req.query);
 
     const filter = { userId: req.session.userId };
 
@@ -30,10 +48,31 @@ router.get('/', requireAuth, async (req, res) => {
       sortObj[sort.startsWith('-') ? sort.slice(1) : sort] = sort.startsWith('-') ? -1 : 1;
     }
 
-    const tasks = await tasksCollection.find(filter).sort(sortObj).toArray();
-    res.json(tasks.map(toClientTask));
+    if (!hasPaging) {
+      const tasks = await tasksCollection.find(filter).sort(sortObj).toArray();
+      return res.json(tasks.map(toClientTask));
+    }
+
+    const total = await tasksCollection.countDocuments(filter);
+
+    const tasks = await tasksCollection
+      .find(filter)
+      .sort(sortObj)
+      .skip(skip)
+      .limit(limit)
+      .toArray();
+
+    const totalPages = Math.max(1, Math.ceil(total / limit));
+
+    return res.json({
+      items: tasks.map(toClientTask),
+      page,
+      limit,
+      total,
+      totalPages,
+    });
   } catch {
-    res.status(500).json({ error: 'database error' });
+    return res.status(500).json({ error: 'database error' });
   }
 });
 
@@ -55,9 +94,9 @@ router.post('/', requireAuth, async (req, res) => {
       updatedAt: now,
     });
 
-    res.status(201).json({ id: result.insertedId.toString() });
+    return res.status(201).json({ id: result.insertedId.toString() });
   } catch {
-    res.status(500).json({ error: 'database error' });
+    return res.status(500).json({ error: 'database error' });
   }
 });
 
@@ -85,9 +124,9 @@ router.put('/:id', requireAuth, async (req, res) => {
     );
 
     if (!result.matchedCount) return res.status(404).json({ error: 'task not found' });
-    res.json({ message: 'updated' });
+    return res.json({ message: 'updated' });
   } catch {
-    res.status(500).json({ error: 'database error' });
+    return res.status(500).json({ error: 'database error' });
   }
 });
 
@@ -105,9 +144,9 @@ router.delete('/:id', requireAuth, async (req, res) => {
     });
 
     if (!result.deletedCount) return res.status(404).json({ error: 'task not found' });
-    res.json({ message: 'deleted' });
+    return res.json({ message: 'deleted' });
   } catch {
-    res.status(500).json({ error: 'database error' });
+    return res.status(500).json({ error: 'database error' });
   }
 });
 

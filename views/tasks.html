@@ -45,16 +45,15 @@
     </select>
 
     <label>Category</label>
-<select id="category">
-  <option value="study">Study</option>
-  <option value="work">Work</option>
-  <option value="personal">Personal</option>
-  <option value="health">Health</option>
-  <option value="finance">Finance</option>
-  <option value="shopping">Shopping</option>
-  <option value="other">Other</option>
-</select>
-
+    <select id="category">
+      <option value="study">Study</option>
+      <option value="work">Work</option>
+      <option value="personal">Personal</option>
+      <option value="health">Health</option>
+      <option value="finance">Finance</option>
+      <option value="shopping">Shopping</option>
+      <option value="other">Other</option>
+    </select>
 
     <label>Deadline</label>
     <input type="date" id="deadline" />
@@ -65,7 +64,38 @@
 
   <hr />
 
-  <h2>All Tasks</h2>
+  <h2>Filter & Sort</h2>
+
+  <label>Filter by title (STRICT)</label>
+  <input type="text" id="filterTitle" placeholder="Exact title match..." />
+
+  <label>Sort</label>
+  <select id="sortBy">
+    <option value="">None</option>
+    <option value="title">Title A → Z</option>
+    <option value="-title">Title Z → A</option>
+    <option value="-createdAt">Newest first</option>
+    <option value="createdAt">Oldest first</option>
+    <option value="deadline">Deadline soonest</option>
+    <option value="-deadline">Deadline latest</option>
+    <option value="priority">Priority (A→Z)</option>
+    <option value="-priority">Priority (Z→A)</option>
+  </select>
+
+  <button id="applyFilter" type="button">Apply</button>
+  <button id="resetFilter" type="button" style="margin-left:8px;">Reset</button>
+
+  <hr />
+
+  <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+    <h2 style="margin:0;">All Tasks</h2>
+    <div style="margin-left:auto; display:flex; gap:10px; align-items:center;">
+      <button id="prevBtn" type="button">Prev</button>
+      <span id="pageInfo">Page 1 / 1</span>
+      <button id="nextBtn" type="button">Next</button>
+    </div>
+  </div>
+
   <div id="tasksList"></div>
 </div>
 
@@ -73,6 +103,10 @@
 let isAuthed = false;
 let isAdmin = false;
 let editMode = false;
+
+let page = 1;
+let totalPages = 1;
+const limit = 10;
 
 const loginLink = document.getElementById('loginLink');
 const logoutBtn = document.getElementById('logoutBtn');
@@ -89,6 +123,13 @@ const deadlineEl = document.getElementById('deadline');
 const cancelBtn = document.getElementById('cancelBtn');
 const formTitle = document.getElementById('form-title');
 
+const filterTitleEl = document.getElementById('filterTitle');
+const sortByEl = document.getElementById('sortBy');
+
+const prevBtn = document.getElementById('prevBtn');
+const nextBtn = document.getElementById('nextBtn');
+const pageInfo = document.getElementById('pageInfo');
+
 function escapeHtml(text) {
   const div = document.createElement('div');
   div.textContent = text || '';
@@ -100,6 +141,16 @@ async function fetchJson(url, options) {
   const data = await res.json().catch(() => null);
   if (!res.ok) throw new Error(data?.error || 'request failed');
   return data;
+}
+
+function updatePager() {
+  if (totalPages < 1) totalPages = 1;
+  if (page < 1) page = 1;
+  if (page > totalPages) page = totalPages;
+
+  pageInfo.textContent = `Page ${page} / ${totalPages}`;
+  prevBtn.disabled = !isAuthed || page <= 1;
+  nextBtn.disabled = !isAuthed || page >= totalPages;
 }
 
 async function checkAuth() {
@@ -116,14 +167,31 @@ async function checkAuth() {
     isAuthed = false;
     isAdmin = false;
   }
+  updatePager();
 }
 
 async function loadTasks() {
   if (!isAuthed) return;
 
-  const url = isAdmin ? '/api/admin/tasks' : '/api/tasks';
+  const base = isAdmin ? '/api/admin/tasks' : '/api/tasks';
 
-  const tasks = await fetchJson(url);
+  const title = filterTitleEl.value.trim();
+  const sort = sortByEl.value;
+
+  const params = [];
+  if (title) params.push(`title=${encodeURIComponent(title)}`);
+  if (sort) params.push(`sort=${encodeURIComponent(sort)}`);
+  params.push(`page=${encodeURIComponent(page)}`);
+  params.push(`limit=${encodeURIComponent(limit)}`);
+
+  const url = base + `?${params.join('&')}`;
+
+  const data = await fetchJson(url);
+  const tasks = Array.isArray(data) ? data : (data.items || []);
+  totalPages = Array.isArray(data) ? 1 : (data.totalPages || 1);
+
+  updatePager();
+
   tasksList.innerHTML = '';
 
   if (!tasks.length) {
@@ -135,12 +203,16 @@ async function loadTasks() {
     const div = document.createElement('div');
     div.className = 'note-item';
 
+    const dl = t.deadline ? new Date(t.deadline) : null;
+    const dlText = (dl && !isNaN(dl.getTime())) ? dl.toLocaleDateString() : '—';
+
     div.innerHTML = `
       <h3>${escapeHtml(t.title)}</h3>
       <p>${escapeHtml(t.details)}</p>
       <p><b>Status:</b> ${escapeHtml(t.status)}</p>
       <p><b>Priority:</b> ${escapeHtml(t.priority)}</p>
       <p><b>Category:</b> ${escapeHtml(t.category)}</p>
+      <p><b>Deadline:</b> ${escapeHtml(dlText)}</p>
       <div class="note-actions">
         <button>Edit</button>
         <button>Delete</button>
@@ -164,7 +236,7 @@ function editTask(t) {
   statusEl.value = t.status;
   priorityEl.value = t.priority;
   categoryEl.value = t.category;
-  deadlineEl.value = t.deadline ? t.deadline.slice(0,10) : '';
+  deadlineEl.value = t.deadline ? String(t.deadline).slice(0,10) : '';
 
   formTitle.textContent = 'Edit Task';
   cancelBtn.style.display = 'inline-block';
@@ -177,6 +249,12 @@ cancelBtn.onclick = () => {
   formTitle.textContent = 'Create New Task';
   cancelBtn.style.display = 'none';
 };
+
+function resetToFirstPage() {
+  page = 1;
+  totalPages = 1;
+  updatePager();
+}
 
 taskForm.onsubmit = async (e) => {
   e.preventDefault();
@@ -205,7 +283,9 @@ taskForm.onsubmit = async (e) => {
   taskForm.reset();
   cancelBtn.style.display = 'none';
   formTitle.textContent = 'Create New Task';
-  loadTasks();
+
+  resetToFirstPage();
+  await loadTasks();
 };
 
 async function deleteTask(id) {
@@ -213,8 +293,35 @@ async function deleteTask(id) {
 
   const base = isAdmin ? '/api/admin/tasks' : '/api/tasks';
   await fetchJson(`${base}/${id}`, { method: 'DELETE' });
-  loadTasks();
+
+  await loadTasks();
 }
+
+document.getElementById('applyFilter').onclick = async () => {
+  resetToFirstPage();
+  await loadTasks();
+};
+
+document.getElementById('resetFilter').onclick = async () => {
+  filterTitleEl.value = '';
+  sortByEl.value = '';
+  resetToFirstPage();
+  await loadTasks();
+};
+
+prevBtn.onclick = async () => {
+  if (page > 1) {
+    page -= 1;
+    await loadTasks();
+  }
+};
+
+nextBtn.onclick = async () => {
+  if (page < totalPages) {
+    page += 1;
+    await loadTasks();
+  }
+};
 
 logoutBtn.onclick = async () => {
   await fetch('/api/auth/logout', { method: 'POST' });
