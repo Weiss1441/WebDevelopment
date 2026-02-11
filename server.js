@@ -1,7 +1,6 @@
 const express = require('express');
 const path = require('path');
 const session = require('express-session');
-const MongoStore = require('connect-mongo');
 require('dotenv').config({ override: true });
 
 const { connectDB } = require('./db');
@@ -14,7 +13,6 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const MONGO_URI = process.env.MONGO_URI;
 const SESSION_SECRET = process.env.SESSION_SECRET;
-const NODE_ENV = process.env.NODE_ENV || 'development';
 
 if (!MONGO_URI || !SESSION_SECRET) {
   console.error('ENV ERROR');
@@ -40,12 +38,6 @@ app.use(
     secret: SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
-    store: MongoStore.create({
-      mongoUrl: MONGO_URI,
-      dbName: process.env.DB_NAME || 'taskboard_db',
-      collectionName: 'sessions',
-      ttl: 60 * 60 * 24
-    }),
     cookie: {
       httpOnly: true,
       sameSite: 'lax',
